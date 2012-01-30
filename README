@@ -1,0 +1,43 @@
+################################################################################
+#
+# 作者 Robert Ray(louirobert@gmail.com)
+# http://kuangtong.me
+#
+# 本软件所有代码遵循GNU GPL许可（http://www.gnu.org/copyleft/gpl.html）。
+#
+################################################################################
+
+所有代码都可以在Windows或Linux上编译/运行。每个子目录都有一些.bat（Windows）或
+.sh（Linux）脚本，用于编译或运行程序：
+
+build
+
+用于编译代码。只有C++和Java代码需要编译。作者使用的C++编译器是：VC2005 Pro或
+VC2010 Express在Windows上，g++ 4.1.2在Linux上；Java编译环境是JDK 1.6 update 30。
+读者需要确保运行build脚本的shell环境含有必需的编译工具：C++需要cl或g++；Java
+需要javac。
+
+game
+
+运行人机交互的游戏。在此环境下用户输入一个单词，计算机进行猜测，并显示猜测过程。
+用户输入一个空行或者按下CTRL+C（Windows）/CTRL+D（Linux）终止程序。需要注意
+的是：除了C++版本的游戏，用户需要确保运行game脚本的shell环境含有必需的脚本语言解
+释器：Java需要java(1.6)；Python需要python(2.7)；Ruby需要ruby(1.9.2)；JavaScript
+需要nodejs(0.6.7)；Lua需要lua52。下面的运行脚本也需要这些解释器。如果读者的shell
+环境下的脚本解释器名称与game脚本里用到的不一样，比如读者使用python27而不是python
+，读者可自行修改game脚本。
+
+sample
+
+小批量数据测试。在此环境下标准输入被重定向到input_sample.txt。读者的shell环
+境须含有必要的脚本解释器，参见上面game脚本的说明。
+
+benchmark
+
+一千次输入的benchmark测试。在此环境下标准输入被重定向到input_benchmark.txt。读者
+的shell环境须含有必要的脚本解释器，参见上面game脚本的说明。
+
+random
+
+一千次随机输入测试。在此环境下的标准输入由RandomWords提供。读者
+的shell环境须含有必要的脚本解释器，参见上面game脚本的说明。
