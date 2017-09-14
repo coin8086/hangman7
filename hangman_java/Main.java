@@ -5,6 +5,25 @@ import java.util.Set;
 import java.util.HashSet;
 
 class Main {
+  public static int run(HangmanGame game, GuessingStrategy strategy, boolean debug) {
+    while(game.gameStatus() == HangmanGame.Status.KEEP_GUESSING) {
+      if (debug)
+        System.err.println(game.toString());
+
+      Guess guess = strategy.nextGuess(game);
+
+      if (debug)
+        System.err.println(guess.toString());
+
+      guess.makeGuess(game);
+    }
+
+    if (debug)
+      System.err.println(game.toString());
+
+    return game.currentScore();
+  }
+
   public static void main(String[] args) {
     String file = System.getenv("hangman_dict");
     if (file == null)
@@ -62,7 +81,7 @@ class Main {
         System.err.println(String.format("New Game [%s]", word));
 
       HangmanGame game = new HangmanGame(word, guesses);
-      int score = game.run(strategy, debug);
+      int score = run(game, strategy, debug);
       totalScore += score;
       total++;
       System.out.println(String.format("%s = %d", word, score));

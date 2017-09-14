@@ -206,19 +206,4 @@ class HangmanGame {
   public String toString() {
     return getGuessedSoFar() + "; score=" + currentScore() + "; status=" + gameStatus();
   }
-
-  public int run(GuessingStrategy strategy, boolean debugOut) {
-    while(gameStatus() == Status.KEEP_GUESSING) {
-      if (debugOut)
-        System.err.println(toString());
-      Guess guess = strategy.nextGuess(this);
-      if (debugOut)
-        System.err.println(guess.toString());
-      guess.makeGuess(this);
-    }
-    if (debugOut)
-      System.err.println(toString());
-    return currentScore();
-  }
-
 }
