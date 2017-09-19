@@ -6,16 +6,35 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.AbstractCollection;
 
 class MyGuessingStrategy implements GuessingStrategy {
   /**
    * A WordSet is a set of words all having the same pattern.
-   * e.g. Given a pattern "AB-", the words may be {"ABC", "ABD", "ABX"}
+   * A pattern is like "AB-", which matches words like "ABC", "ABD" and "ABX",
+   * but not "ABA" or "ABB".
    * A WordSet contains statistical info about letters of the words in it.
    */
-  private static class WordSet {
+  private static class WordSet extends AbstractCollection<String> {
+
+    private class WordIterator implements Iterator<String> {
+      private Iterator<String> it = WordSet.this.words.iterator();
+
+      public boolean hasNext() {
+        return it.hasNext();
+      }
+
+      public String next() {
+        return it.next();
+      }
+
+      public void remove() {
+        throw new UnsupportedOperationException();
+      }
+    }
 
     private static class LetterStat implements Comparable<LetterStat> {
+      //TODO: Make ch final
       public char ch = 0;
       public int count = 0;  //How many times the letter appears in a WordSet
       public int wordCount = 0;  //How many words contains the letter in a WordSet
@@ -50,12 +69,14 @@ class MyGuessingStrategy implements GuessingStrategy {
      */
     private List<String> words = new ArrayList<String>();
 
+    @Override
     public int size() {
       return words.size();
     }
 
-    public List<String> words() {
-      return Collections.unmodifiableList(words);
+    @Override
+    public Iterator<String> iterator() {
+      return new WordIterator();
     }
 
     /**
@@ -214,7 +235,7 @@ class MyGuessingStrategy implements GuessingStrategy {
     //Draw the new pattern collection and info through filtering the parent
     WordSet newSet = new WordSet();
     map.put(pattern, newSet);
-    for (String word : parentWordSet.words()) {
+    for (String word : parentWordSet) {
       if (match(pattern, word, patternChars)) {
         newSet.update(word, patternChars);
       }
@@ -234,7 +255,7 @@ class MyGuessingStrategy implements GuessingStrategy {
     List<String> candidates = new ArrayList<String>();
     char ch = wordset.suggest(wrongLetters);
 
-    for (String word : wordset.words()) {
+    for (String word : wordset) {
       if (!hasAny(word, wrongLetters)) {
         candidates.add(word);
         if (word.indexOf(ch) != -1) {
@@ -268,7 +289,7 @@ class MyGuessingStrategy implements GuessingStrategy {
   private String suggest(String pattern, WordSet wordset, HangmanGame game) {
     //If the pattern collection has only one word, that's it!
     if (wordset.size() == 1) {
-      return wordset.words().get(0);
+      return wordset.iterator().next();
     }
 
     //Make a guess, according to letter frequency of a pattern.
