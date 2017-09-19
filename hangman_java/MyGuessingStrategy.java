@@ -20,14 +20,17 @@ class MyGuessingStrategy implements GuessingStrategy {
     private class WordIterator implements Iterator<String> {
       private Iterator<String> it = WordSet.this.words.iterator();
 
+      @Override
       public boolean hasNext() {
         return it.hasNext();
       }
 
+      @Override
       public String next() {
         return it.next();
       }
 
+      @Override
       public void remove() {
         throw new UnsupportedOperationException();
       }
@@ -43,6 +46,7 @@ class MyGuessingStrategy implements GuessingStrategy {
         this.ch = ch;
       }
 
+      @Override
       public int compareTo(LetterStat rhs) {
         if (this.count > rhs.count)
           return -1;
@@ -163,6 +167,7 @@ class MyGuessingStrategy implements GuessingStrategy {
     }
   }
 
+  @Override
   public Guess nextGuess(HangmanGame game) {
     String pattern = game.getGuessedSoFar(); //This line clearly explains what a "pattern" is.
     WordSet wordset = this.patternMapGroup.get(pattern.length() - 1).get(pattern);
