@@ -11,33 +11,32 @@ class MyGuessingStrategy implements GuessingStrategy {
   /**
    * A WordSet is a set of words all having the same pattern.
    * e.g. Given a pattern "AB-", the words may be {"ABC", "ABD", "ABX"}
-   * A WordSet also contains statistical info about the words in it, such as
-   * letter occurrence times.
+   * A WordSet contains statistical info about letters of the words in it.
    */
   private static class WordSet {
 
     private static class LetterStat {
-      public int frequency = 0;  //How many times the letter appears in a WordSet
+      public int count = 0;  //How many times the letter appears in a WordSet
       public int wordCount = 0;  //How many words contains the letter in a WordSet
     }
 
     //A helper class to make order.
     private static class LetterStatHelper implements Comparable<LetterStatHelper> {
       public char ch = 0;
-      public int frequency = 0;
+      public int count = 0;
       public int wordCount = 0;
 
       public LetterStatHelper(char ch, LetterStat stat) {
         this.ch = ch;
-        this.frequency = stat.frequency;
+        this.count = stat.count;
         this.wordCount = stat.wordCount;
       }
 
       public int compareTo(LetterStatHelper rhs) {
-        if (this.frequency > rhs.frequency)
+        if (this.count > rhs.count)
           return -1;
 
-        if (this.frequency == rhs.frequency)
+        if (this.count == rhs.count)
           return this.wordCount - rhs.wordCount;
 
         return 1;
@@ -79,14 +78,14 @@ class MyGuessingStrategy implements GuessingStrategy {
         if (excluded == null || !excluded.contains(ch)) {
           LetterStat stat = this.stat.get(ch);
           if (stat != null) {
-            stat.frequency++;
+            stat.count++;
             if (parsed.add(ch)) {
               stat.wordCount++;
             }
           }
           else {
             stat = new LetterStat();
-            stat.frequency++;
+            stat.count++;
             stat.wordCount++;
             this.stat.put(ch, stat);
             parsed.add(ch);
