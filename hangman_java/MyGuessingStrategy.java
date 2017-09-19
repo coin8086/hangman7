@@ -50,7 +50,7 @@ class MyGuessingStrategy implements GuessingStrategy {
      */
     private List<String> words = new ArrayList<String>();
 
-    public int wordCount() {
+    public int size() {
       return words.size();
     }
 
@@ -203,7 +203,7 @@ class MyGuessingStrategy implements GuessingStrategy {
 
         String p = new String(copy);
         WordSet set = map.get(p);
-        if (set != null && (parentWordSet == null || parentWordSet.wordCount() > set.wordCount())) {
+        if (set != null && (parentWordSet == null || parentWordSet.size() > set.size())) {
           parentWordSet = set;
           parentPattern = p;
         }
@@ -267,7 +267,7 @@ class MyGuessingStrategy implements GuessingStrategy {
    */
   private String suggest(String pattern, WordSet wordset, HangmanGame game) {
     //If the pattern collection has only one word, that's it!
-    if (wordset.wordCount() == 1) {
+    if (wordset.size() == 1) {
       return wordset.words().get(0);
     }
 
