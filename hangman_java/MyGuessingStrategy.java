@@ -37,8 +37,7 @@ class MyGuessingStrategy implements GuessingStrategy {
     }
 
     private static class LetterStat implements Comparable<LetterStat> {
-      //TODO: Make ch final
-      public char ch = 0;
+      public final char ch;
       public int count = 0;  //How many times the letter appears in a WordSet
       public int wordCount = 0;  //How many words contains the letter in a WordSet
 
