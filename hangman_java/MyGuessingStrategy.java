@@ -15,24 +15,16 @@ class MyGuessingStrategy implements GuessingStrategy {
    */
   private static class WordSet {
 
-    private static class LetterStat {
+    private static class LetterStat implements Comparable<LetterStat> {
+      public char ch = 0;
       public int count = 0;  //How many times the letter appears in a WordSet
       public int wordCount = 0;  //How many words contains the letter in a WordSet
-    }
 
-    //A helper class to make order.
-    private static class LetterStatHelper implements Comparable<LetterStatHelper> {
-      public char ch = 0;
-      public int count = 0;
-      public int wordCount = 0;
-
-      public LetterStatHelper(char ch, LetterStat stat) {
+      LetterStat(char ch) {
         this.ch = ch;
-        this.count = stat.count;
-        this.wordCount = stat.wordCount;
       }
 
-      public int compareTo(LetterStatHelper rhs) {
+      public int compareTo(LetterStat rhs) {
         if (this.count > rhs.count)
           return -1;
 
@@ -51,12 +43,12 @@ class MyGuessingStrategy implements GuessingStrategy {
     /**
      * Letters in descendent order on frequency
      */
-    private char[] order = null;
+    private List<LetterStat> order = null;
 
     /**
      * Words in the set.
      */
-    List<String> words = new ArrayList<String>();
+    private List<String> words = new ArrayList<String>();
 
     public int wordCount() {
       return words.size();
@@ -84,7 +76,7 @@ class MyGuessingStrategy implements GuessingStrategy {
             }
           }
           else {
-            stat = new LetterStat();
+            stat = new LetterStat(ch);
             stat.count++;
             stat.wordCount++;
             this.stat.put(ch, stat);
@@ -101,9 +93,10 @@ class MyGuessingStrategy implements GuessingStrategy {
     public char suggest(Set<Character> excluded) {
       if (this.order == null)
         makeOrder();
-      for (int i = 0; i < this.order.length; i++) {
-        if (!excluded.contains(this.order[i])) {
-          return this.order[i];
+      for (int i = 0; i < this.order.size(); i++) {
+        char ch = this.order.get(i).ch;
+        if (!excluded.contains(ch)) {
+          return ch;
         }
       }
       assert(false);
@@ -114,15 +107,8 @@ class MyGuessingStrategy implements GuessingStrategy {
      * Sort letters in a word set on their frquencies in descending order.
      */
     private void makeOrder() {
-      List<LetterStatHelper> tmp = new ArrayList<LetterStatHelper>(this.stat.size());
-      for (Map.Entry<Character, LetterStat> entry : this.stat.entrySet()) {
-        tmp.add(new LetterStatHelper(entry.getKey(), entry.getValue()));
-      }
-      Collections.sort(tmp);
-      this.order = new char[tmp.size()];
-      for (int i = 0; i < tmp.size(); i++) {
-        this.order[i] = tmp.get(i).ch;
-      }
+      order = new ArrayList<LetterStat>(this.stat.values());
+      Collections.sort(order);
     }
 
   };
