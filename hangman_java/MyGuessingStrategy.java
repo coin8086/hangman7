@@ -6,13 +6,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Collection;
 import java.util.AbstractCollection;
 
 class MyGuessingStrategy implements GuessingStrategy {
   /**
    * A WordSet is a set of words all having the same pattern.
-   * A pattern is like "AB-", which matches words like "ABC", "ABD" and "ABX",
-   * but not "ABA" or "ABB".
+   * A pattern is a string returned by HangmanGame::getGuessedSoFar. It's like
+   * "AB-", which matches words like "ABC", "ABD" and "ABX", but not "ABA" or "ABB".
    * A WordSet contains statistical info about letters of the words in it.
    */
   private static class WordSet extends AbstractCollection<String> {
@@ -72,26 +73,53 @@ class MyGuessingStrategy implements GuessingStrategy {
      */
     private List<String> words = new ArrayList<String>();
 
-    @Override
-    public int size() {
-      return words.size();
+    private final String pattern;
+
+    private final Set<Character> guessedLetters;
+
+    WordSet(String pattern, Set<Character> guessedLetters, Collection<String> words) {
+      assert(pattern != null && guessedLetters != null);
+      this.pattern = pattern;
+      this.guessedLetters = guessedLetters;
+      addAll(words);
+    }
+
+    private boolean match(String word) {
+      int size = pattern.length();
+      assert(size == word.length());
+
+      boolean ret = true;
+      for (int i = 0; i < size; i++) {
+        if (pattern.charAt(i) != HangmanGame.MYSTERY_LETTER) {
+          if (pattern.charAt(i) != word.charAt(i)) {
+            ret = false;
+            break;
+          }
+        }
+        else {
+          if (guessedLetters.contains(word.charAt(i))) {
+            ret = false;
+            break;
+          }
+        }
+      }
+      return ret;
     }
 
     @Override
-    public Iterator<String> iterator() {
-      return new WordIterator();
-    }
+    public boolean add(String word) {
+      if (!match(word)) {
+        //throw new IllegalArgumentException();
+        //It really should raise the exception when the word is not acceptable.
+        //However, returning false can make addAll work conveniently on a
+        //collection of words.
+        return false;
+      }
 
-    /**
-     * Insert a new word to the word set, and update the letter statistical info.
-     * Letters in the excluded set are not counted for the statistical info.
-     */
-    public void update(String word, Set<Character> excluded) {
       Set<Character> parsed = new HashSet<Character>();
-      int i;
-      for (i = 0; i < word.length(); i++) {
+      for (int i = 0; i < word.length(); i++) {
         char ch = word.charAt(i);
-        if (excluded == null || !excluded.contains(ch)) {
+        if (!guessedLetters.contains(ch)) {
           LetterStat stat = this.stat.get(ch);
           if (stat != null) {
             stat.count++;
@@ -109,14 +137,26 @@ class MyGuessingStrategy implements GuessingStrategy {
         }
       }
       this.words.add(word);
+      return true;
+    }
+
+    @Override
+    public int size() {
+      return words.size();
+    }
+
+    @Override
+    public Iterator<String> iterator() {
+      return new WordIterator();
     }
 
     /**
      * Give a suggest of the most probable letter not in the excluded letter set.
      */
     public char suggest(Set<Character> excluded) {
-      if (this.order == null)
+      if (this.order == null) {
         makeOrder();
+      }
       for (int i = 0; i < this.order.size(); i++) {
         char ch = this.order.get(i).ch;
         if (!excluded.contains(ch)) {
@@ -137,41 +177,26 @@ class MyGuessingStrategy implements GuessingStrategy {
 
   };
 
+  private final Set<String> dict;
+
   /**
-   * An array of maps of patterns to their WordSets.
-   * Given a pattern P, its WordSet can be retrieved by patternMapGroup[P.length - 1][P]
+   * A map of patterns to WordSets.
    */
-  private List<Map<String, WordSet > > patternMapGroup = new ArrayList<Map<String, WordSet > >();
+  private Map<String, WordSet> patterns = new HashMap<String, WordSet>();
 
   public MyGuessingStrategy(Set<String> dict) {
-    List<String> patterns = new ArrayList<String>(20);
-    Iterator<String> it = dict.iterator();
-    while (it.hasNext()) {
-      String s = it.next().toUpperCase();
-      int len = s.length();
-      if (patterns.size() < len) {
-        for (int i = patterns.size(); i < len; i++)
-          patterns.add(null);
-      }
-      String p = patterns.get(len - 1);
-      if (p == null) {
-        char[] pattern = new char[len];
-        for (int i = 0; i < len; i++) {
-          pattern[i] = HangmanGame.MYSTERY_LETTER;
-        }
-        p = new String(pattern);
-        patterns.set(len - 1, p);
-      }
-      insert(p, s);
-    }
+    this.dict = dict;
   }
 
   @Override
   public Guess nextGuess(HangmanGame game) {
-    String pattern = game.getGuessedSoFar(); //This line clearly explains what a "pattern" is.
-    WordSet wordset = this.patternMapGroup.get(pattern.length() - 1).get(pattern);
-    if (wordset == null) { //If no statistical info collected for the pattern, collect it now.
-      wordset = newWordSet(pattern);
+    String pattern = game.getGuessedSoFar();
+    WordSet wordset = this.patterns.get(pattern);
+    if (wordset == null) {
+      //NOTE: A wordset is related to a specific game status, i.e. the pattern
+      //AND the guessed letters. And a strategy instance contains such wordsets.
+      //So there MUST be a new strategy instance for a new game.
+      wordset = newWordSet(pattern, game.getAllGuessedLetters());
     }
     String next = suggest(pattern, wordset, game);
     if (next.length() == 1) {
@@ -183,68 +208,46 @@ class MyGuessingStrategy implements GuessingStrategy {
   }
 
   /**
-   * Insert a word and its pattern to patternMapGroup
+   * Make a new WordSet for the pattern AND the guessed letters.
    */
-  private void insert(String pattern, String word) {
-    assert(pattern.length() == word.length());
-
+  private WordSet newWordSet(String pattern, Set<Character> guessed) {
     int len = pattern.length();
-    if (this.patternMapGroup.size() < len) { //Increase the list size if necessary
-      for (int i = this.patternMapGroup.size(); i < len; i++) {
-        this.patternMapGroup.add(new HashMap<String, WordSet>());
-      }
-    }
-
-    Map<String, WordSet > map = this.patternMapGroup.get(len - 1);
-    WordSet set = map.get(pattern);
-    if (set == null) {
-      set = new WordSet();
-      map.put(pattern, set);
-    }
-    set.update(word, null);
-  }
-
-  /**
-   * Make a new WordSet to the pattern.
-   */
-  private WordSet newWordSet(String pattern) {
-    int len = pattern.length();
-    Map<String, WordSet> map = this.patternMapGroup.get(len - 1);
-
-    //Find the smallest "parent" pattern collection
-    int i;
-    WordSet parentWordSet = null;
-    String parentPattern = null;
-    Set<Character> patternChars = new HashSet<Character>(); //e.g. given a pattern "AB-A--", patternChars is {'A', 'B'}
-    for (i = 0; i < len; i++) {
-      char ch = pattern.charAt(i);
-      if (ch != HangmanGame.MYSTERY_LETTER && patternChars.add(ch)) {
-        char[] copy = pattern.toCharArray();
-        copy[i] = HangmanGame.MYSTERY_LETTER;
-        for (int j = i + 1; j < len; j++) {
-          if (copy[j] == ch)
-            copy[j] = HangmanGame.MYSTERY_LETTER;
-        }
-
-        String p = new String(copy);
-        WordSet set = map.get(p);
-        if (set != null && (parentWordSet == null || parentWordSet.size() > set.size())) {
-          parentWordSet = set;
-          parentPattern = p;
+    Collection<String> coll;
+    if (patterns.isEmpty()) {
+      List<String> words = new ArrayList<String>();
+      for (String word: this.dict) {
+        if (word.length() == len) {
+          words.add(word);
         }
       }
+      coll = words;
     }
-    assert(parentWordSet != null);
+    else {
+      //Find the smallest "parent" pattern collection
+      WordSet parentWordSet = null;
+      Set<Character> patternChars = new HashSet<Character>(); //e.g. given a pattern "AB-A--", patternChars is {'A', 'B'}
+      for (int i = 0; i < len; i++) {
+        char ch = pattern.charAt(i);
+        if (ch != HangmanGame.MYSTERY_LETTER && patternChars.add(ch)) {
+          char[] copy = pattern.toCharArray();
+          copy[i] = HangmanGame.MYSTERY_LETTER;
+          for (int j = i + 1; j < len; j++) {
+            if (copy[j] == ch)
+              copy[j] = HangmanGame.MYSTERY_LETTER;
+          }
 
-    //Draw the new pattern collection and info through filtering the parent
-    WordSet newSet = new WordSet();
-    map.put(pattern, newSet);
-    for (String word : parentWordSet) {
-      if (match(pattern, word, patternChars)) {
-        newSet.update(word, patternChars);
+          String p = new String(copy);
+          WordSet set = this.patterns.get(p);
+          if (set != null && (parentWordSet == null || parentWordSet.size() > set.size())) {
+            parentWordSet = set;
+          }
+        }
       }
+      assert(parentWordSet != null);
+      coll = parentWordSet;
     }
-
+    WordSet newSet = new WordSet(pattern, guessed, coll);
+    this.patterns.put(pattern, newSet);
     return newSet;
   }
 
@@ -326,33 +329,6 @@ class MyGuessingStrategy implements GuessingStrategy {
   }
 
   /**
-   * Return true only when str matches pattern EXACTLY. A pattern is a string returned by HangmanGame::getGuessedSoFar.
-   * e.g. given pattern "AB-", string "ABC" and "ABD" match it, while "ABA" "ABB" and "XYZ" DON'T. In the same
-   * example, the patternChars argument must be {'A', 'B'}
-   */
-  private static boolean match(String pattern, String str, Set<Character> patternChars) {
-    assert(pattern.length() == str.length());
-
-    int size = pattern.length();
-    boolean ret = true;
-    for (int i = 0; i < size; i++) {
-      if (pattern.charAt(i) != HangmanGame.MYSTERY_LETTER) {
-        if (pattern.charAt(i) != str.charAt(i)) {
-          ret = false;
-          break;
-        }
-      }
-      else {
-        if (patternChars.contains(str.charAt(i))) {
-          ret = false;
-          break;
-        }
-      }
-    }
-    return ret;
-  }
-
-  /**
    * If a word has any characters in chars, return true, otherwise false.
    */
   private static boolean hasAny(String word, Set<Character> chars) {
@@ -371,6 +347,5 @@ class MyGuessingStrategy implements GuessingStrategy {
     }
     return count;
   }
-
 
 }

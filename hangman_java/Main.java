@@ -60,7 +60,6 @@ class Main {
     }
 
     // Run game
-    MyGuessingStrategy strategy = new MyGuessingStrategy(dict);
     double totalScore = 0;
     int total = 0;
 
@@ -80,6 +79,7 @@ class Main {
       if (debug)
         System.err.println(String.format("New Game [%s]", word));
 
+      MyGuessingStrategy strategy = new MyGuessingStrategy(dict);
       HangmanGame game = new HangmanGame(word, guesses);
       int score = run(game, strategy, debug);
       totalScore += score;
