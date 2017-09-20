@@ -22,11 +22,11 @@ class RandomWords {
     // Read in dictionary file
     List<String> dict = new LinkedList<String>();
     try {
-	    Scanner s = new Scanner(new File(file));
+      Scanner s = new Scanner(new File(file));
       while (s.hasNext()) {
-		    String word = s.next();
-		    if (word.length() > 0)
-		      dict.add(word.toUpperCase());
+        String word = s.next();
+        if (word.length() > 0)
+          dict.add(word.toUpperCase());
       }
     }
     catch (IOException e) {
