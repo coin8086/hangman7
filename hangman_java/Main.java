@@ -7,20 +7,19 @@ import java.util.HashSet;
 class Main {
   public static int run(HangmanGame game, GuessingStrategy strategy, boolean debug) {
     while(game.gameStatus() == HangmanGame.Status.KEEP_GUESSING) {
-      if (debug)
+      if (debug) {
         System.err.println(game.toString());
-
+      }
       Guess guess = strategy.nextGuess(game);
-
-      if (debug)
+      if (debug) {
         System.err.println(guess.toString());
-
+        System.err.println(strategy.toString());
+      }
       guess.makeGuess(game);
     }
-
-    if (debug)
+    if (debug) {
       System.err.println(game.toString());
-
+    }
     return game.currentScore();
   }
 
@@ -76,11 +75,12 @@ class Main {
         continue;
       }
 
-      if (debug)
+      if (debug) {
         System.err.println(String.format("New Game [%s]", word));
+      }
 
-      MyGuessingStrategy strategy = new MyGuessingStrategy(dict);
       HangmanGame game = new HangmanGame(word, guesses);
+      MyGuessingStrategy strategy = new MyGuessingStrategy(game, dict);
       int score = run(game, strategy, debug);
       totalScore += score;
       total++;

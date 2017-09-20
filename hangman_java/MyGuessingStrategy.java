@@ -11,10 +11,10 @@ import java.util.AbstractCollection;
 
 class MyGuessingStrategy implements GuessingStrategy {
   /**
-   * A WordSet is a set of words all having the same pattern.
+   * A WordSet is a set of words having the same pattern.
    * A pattern is a string returned by HangmanGame::getGuessedSoFar. It's like
    * "AB-", which matches words like "ABC", "ABD" and "ABX", but not "ABA" or "ABB".
-   * A WordSet contains statistical info about letters of the words in it.
+   * A WordSet contains statistical info about letters that are NOT GUESSED yet.
    */
   private static class WordSet extends AbstractCollection<String> {
 
@@ -73,9 +73,9 @@ class MyGuessingStrategy implements GuessingStrategy {
      */
     private List<String> words = new ArrayList<String>();
 
-    private final String pattern;
+    public final String pattern;
 
-    private final Set<Character> guessedLetters;
+    public final Set<Character> guessedLetters;
 
     WordSet(String pattern, Set<Character> guessedLetters, Collection<String> words) {
       assert(pattern != null && guessedLetters != null);
@@ -84,6 +84,9 @@ class MyGuessingStrategy implements GuessingStrategy {
       addAll(words);
     }
 
+    /**
+     * Determine if a word matches the pattern and guessed letters.
+     */
     private boolean match(String word) {
       int size = pattern.length();
       assert(size == word.length());
@@ -175,30 +178,31 @@ class MyGuessingStrategy implements GuessingStrategy {
       Collections.sort(order);
     }
 
+    @Override
+    public String toString() {
+      return "WordSet[" + size() + "]";
+    }
   };
 
-  private final Set<String> dict;
+  private WordSet wordset;
 
-  /**
-   * A map of patterns to WordSets.
-   */
-  private Map<String, WordSet> patterns = new HashMap<String, WordSet>();
-
-  public MyGuessingStrategy(Set<String> dict) {
-    this.dict = dict;
+  public MyGuessingStrategy(HangmanGame game, Set<String> dict) {
+    String pattern = game.getGuessedSoFar();
+    int len = pattern.length();
+    List<String> words = new ArrayList<String>();
+    for (String word: dict) {
+      if (word.length() == len) {
+        words.add(word);
+      }
+    }
+    this.wordset = new WordSet(pattern, game.getAllGuessedLetters(), words);
   }
 
   @Override
   public Guess nextGuess(HangmanGame game) {
-    String pattern = game.getGuessedSoFar();
-    WordSet wordset = this.patterns.get(pattern);
-    if (wordset == null) {
-      //NOTE: A wordset is related to a specific game status, i.e. the pattern
-      //AND the guessed letters. And a strategy instance contains such wordsets.
-      //So there MUST be a new strategy instance for a new game.
-      wordset = newWordSet(pattern, game.getAllGuessedLetters());
-    }
-    String next = suggest(pattern, wordset, game);
+    //Update wordset on a previous guess result, be it successful or not.
+    this.wordset = new WordSet(game.getGuessedSoFar(), game.getAllGuessedLetters(), this.wordset);
+    String next = suggest(game);
     if (next.length() == 1) {
       return new GuessLetter(next.charAt(0));
     }
@@ -208,61 +212,18 @@ class MyGuessingStrategy implements GuessingStrategy {
   }
 
   /**
-   * Make a new WordSet for the pattern AND the guessed letters.
-   */
-  private WordSet newWordSet(String pattern, Set<Character> guessed) {
-    int len = pattern.length();
-    Collection<String> coll;
-    if (patterns.isEmpty()) {
-      List<String> words = new ArrayList<String>();
-      for (String word: this.dict) {
-        if (word.length() == len) {
-          words.add(word);
-        }
-      }
-      coll = words;
-    }
-    else {
-      //Find the smallest "parent" pattern collection
-      WordSet parentWordSet = null;
-      Set<Character> patternChars = new HashSet<Character>(); //e.g. given a pattern "AB-A--", patternChars is {'A', 'B'}
-      for (int i = 0; i < len; i++) {
-        char ch = pattern.charAt(i);
-        if (ch != HangmanGame.MYSTERY_LETTER && patternChars.add(ch)) {
-          char[] copy = pattern.toCharArray();
-          copy[i] = HangmanGame.MYSTERY_LETTER;
-          for (int j = i + 1; j < len; j++) {
-            if (copy[j] == ch)
-              copy[j] = HangmanGame.MYSTERY_LETTER;
-          }
-
-          String p = new String(copy);
-          WordSet set = this.patterns.get(p);
-          if (set != null && (parentWordSet == null || parentWordSet.size() > set.size())) {
-            parentWordSet = set;
-          }
-        }
-      }
-      assert(parentWordSet != null);
-      coll = parentWordSet;
-    }
-    WordSet newSet = new WordSet(pattern, guessed, coll);
-    this.patterns.put(pattern, newSet);
-    return newSet;
-  }
-
-  /**
    * When we have a last chance to make a guess and there're more than one blanks
    * in a pattern, we do the final blow! The basic idea is to select a word, which
    * dosn't contain those wrong guessed letters while has the most probable
    * letter given by a WordSet::suggest.
    */
-  private String finalBlow(String pattern, WordSet wordset, Set<Character> wrongLetters) {
+  private String finalBlow(HangmanGame game) {
     String guess = null;
     List<String> candidates = new ArrayList<String>();
-    char ch = wordset.suggest(wrongLetters);
+    char ch = this.wordset.suggest(game.getAllGuessedLetters());
+    Set<Character> wrongLetters = game.getIncorrectlyGuessedLetters();
 
-    for (String word : wordset) {
+    for (String word : this.wordset) {
       if (!hasAny(word, wrongLetters)) {
         candidates.add(word);
         if (word.indexOf(ch) != -1) {
@@ -276,7 +237,7 @@ class MyGuessingStrategy implements GuessingStrategy {
       Set<Character> excluded = new HashSet<Character>(wrongLetters);
       while (guess == null) {
         excluded.add(ch);
-        ch = wordset.suggest(excluded);
+        ch = this.wordset.suggest(excluded);
         for (String word : candidates) {
           if (word.indexOf(ch) != -1) {
             guess = word;
@@ -293,35 +254,44 @@ class MyGuessingStrategy implements GuessingStrategy {
   /**
    * Suggest a letter or word.
    */
-  private String suggest(String pattern, WordSet wordset, HangmanGame game) {
-    //If the pattern collection has only one word, that's it!
-    if (wordset.size() == 1) {
-      return wordset.iterator().next();
+  private String suggest(HangmanGame game) {
+    if (this.wordset.size() == 1) {
+      return this.wordset.iterator().next();
     }
 
-    //Make a guess, according to letter frequency of a pattern.
     String word = null;
-    Set<Character> wrongLetters = game.getIncorrectlyGuessedLetters();
-    Set<String> wrongWords = game.getIncorrectlyGuessedWords();
+    Set<Character> guessedLetters = game.getAllGuessedLetters();
+    String pattern = game.getGuessedSoFar();
     int patternBlanks = numOfBlanks(pattern); //Number of '-' characters in a pattern.
 
     if (patternBlanks > 1) {
-      if (game.numWrongGuessesRemaining() == 0)
-        word = finalBlow(pattern, wordset, wrongLetters);
+      if (game.numWrongGuessesRemaining() == 0) {
+        word = finalBlow(game);
+      }
       else {
-        word = Character.toString(wordset.suggest(wrongLetters));
+        word = Character.toString(this.wordset.suggest(guessedLetters));
       }
     }
     else {
-      Set<Character> excluded = new HashSet<Character>(wrongLetters);
-      while(true) {
-        char ch = wordset.suggest(excluded);
-        word = pattern.replace(HangmanGame.MYSTERY_LETTER, ch);
-        if (!wrongWords.contains(word))
-          break;
-        else
-          excluded.add(ch);
+      //When there's only one blank letter, try to guess the word to save one
+      //score on a successfull guess.
+      Set<Character> excluded;
+      Set<String> wrongWords = game.getIncorrectlyGuessedWords();
+      if (!wrongWords.isEmpty()) {
+        //Reduce the wordset by incorrectly guessed letters from the wrongWords
+        //and guessedLetters.
+        int idx = pattern.indexOf(HangmanGame.MYSTERY_LETTER);
+        excluded = new HashSet<Character>(guessedLetters);
+        for (String wd : wrongWords) {
+          excluded.add(wd.charAt(idx));
+        }
+        this.wordset = new WordSet(pattern, excluded, this.wordset);
       }
+      else {
+        excluded = guessedLetters;
+      }
+      char ch = this.wordset.suggest(excluded);
+      word = pattern.replace(HangmanGame.MYSTERY_LETTER, ch);
     }
 
     assert(word != null);
@@ -348,4 +318,8 @@ class MyGuessingStrategy implements GuessingStrategy {
     return count;
   }
 
+  @Override
+  public String toString() {
+    return "MyGuessingStrategy[" + this.wordset.toString() + "]";
+  }
 }
