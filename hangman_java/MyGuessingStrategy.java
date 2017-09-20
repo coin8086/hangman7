@@ -229,7 +229,8 @@ class MyGuessingStrategy implements GuessingStrategy {
     int patternBlanks = numOfBlanks(pattern);
     if (patternBlanks > 1) {
       if (game.numWrongGuessesRemaining() == 0) {
-        return new GuessWord(finalBlow(game));
+        //Simply return the first word in the word set for the last chance.
+        return new GuessWord(this.wordset.iterator().next());
       }
       else {
         return new GuessLetter((this.wordset.suggest(guessedLetters)));
@@ -241,57 +242,6 @@ class MyGuessingStrategy implements GuessingStrategy {
       char ch = this.wordset.suggest(guessed);
       return new GuessWord(pattern.replace(HangmanGame.MYSTERY_LETTER, ch));
     }
-  }
-
-  /**
-   * When we have a last chance to make a guess and there're more than one blanks
-   * in a pattern, we do the final blow! The basic idea is to select a word, which
-   * dosn't contain those wrong guessed letters while has the most probable
-   * letter given by a WordSet::suggest.
-   */
-  private String finalBlow(HangmanGame game) {
-    String guess = null;
-    List<String> candidates = new ArrayList<String>();
-    char ch = this.wordset.suggest(game.getAllGuessedLetters());
-    Set<Character> wrongLetters = game.getIncorrectlyGuessedLetters();
-
-    for (String word : this.wordset) {
-      if (!hasAny(word, wrongLetters)) {
-        candidates.add(word);
-        if (word.indexOf(ch) != -1) {
-          guess = word;
-          break;
-        }
-      }
-    }
-
-    if (guess == null) {
-      Set<Character> excluded = new HashSet<Character>(wrongLetters);
-      while (guess == null) {
-        excluded.add(ch);
-        ch = this.wordset.suggest(excluded);
-        for (String word : candidates) {
-          if (word.indexOf(ch) != -1) {
-            guess = word;
-            break;
-          }
-        }
-      }
-    }
-
-    assert(guess != null);
-    return guess;
-  }
-
-  /**
-   * If a word has any characters in chars, return true, otherwise false.
-   */
-  private static boolean hasAny(String word, Set<Character> chars) {
-    for (int i = 0; i < word.length(); i++) {
-      if (chars.contains(word.charAt(i)))
-        return true;
-    }
-    return false;
   }
 
   private static int numOfBlanks(String pattern) {
