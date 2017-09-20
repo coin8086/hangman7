@@ -45,12 +45,11 @@ class Main {
 
     // Read in dictionary file
     Set<String> dict = new HashSet<String>();
-    try {
-      Scanner s = new Scanner(new File(file));
+    try (Scanner s = new Scanner(new File(file))) {
       while (s.hasNext()) {
-        String word = s.next();
-        if (word.length() > 0)
-          dict.add(word.toUpperCase());
+		    String word = s.next();
+		    if (word.length() > 0)
+		      dict.add(word.toUpperCase());
       }
     }
     catch (IOException e) {
@@ -62,30 +61,31 @@ class Main {
     double totalScore = 0;
     int total = 0;
 
-    Scanner s = new Scanner(System.in);
-    System.err.println("Enter a word:");
-    while (s.hasNext()) {
-      String word = s.next();
-      if (word.isEmpty())
-        break;
-
-      word = word.toUpperCase();
-      if (!dict.contains(word)) {
-        System.err.println(String.format("Word '%s' is not in dicitionary!", word));
-        continue;
-      }
-
-      if (debug) {
-        System.err.println(String.format("New Game [%s]", word));
-      }
-
-      HangmanGame game = new HangmanGame(word, guesses);
-      MyGuessingStrategy strategy = new MyGuessingStrategy(game, dict);
-      int score = run(game, strategy, debug);
-      totalScore += score;
-      total++;
-      System.out.println(String.format("%s = %d", word, score));
+    try (Scanner s = new Scanner(System.in)) {
       System.err.println("Enter a word:");
+      while (s.hasNext()) {
+        String word = s.next();
+        if (word.isEmpty())
+          break;
+
+        word = word.toUpperCase();
+        if (!dict.contains(word)) {
+          System.err.println(String.format("Word '%s' is not in dicitionary!", word));
+          continue;
+        }
+
+        if (debug) {
+          System.err.println(String.format("New Game [%s]", word));
+        }
+
+        HangmanGame game = new HangmanGame(word, guesses);
+        MyGuessingStrategy strategy = new MyGuessingStrategy(game, dict);
+        int score = run(game, strategy, debug);
+        totalScore += score;
+        total++;
+        System.out.println(String.format("%s = %d", word, score));
+        System.err.println("Enter a word:");
+      }
     }
 
     if (total > 0)
