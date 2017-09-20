@@ -200,14 +200,46 @@ class MyGuessingStrategy implements GuessingStrategy {
 
   @Override
   public Guess nextGuess(HangmanGame game) {
-    //Update wordset on a previous guess result, be it successful or not.
-    this.wordset = new WordSet(game.getGuessedSoFar(), game.getAllGuessedLetters(), this.wordset);
-    String next = suggest(game);
-    if (next.length() == 1) {
-      return new GuessLetter(next.charAt(0));
+    String pattern = game.getGuessedSoFar();
+    Set<Character> guessedLetters = game.getAllGuessedLetters();
+    Set<Character> guessed = new HashSet<Character>(guessedLetters);
+    Set<String> wrongWords = game.getIncorrectlyGuessedWords();
+    //NOTE: The strategy will make a word guess either when there's only one
+    //word in the wordset, or when there's only one blank left.
+    //When a word guess failed, the incorrectly guessed letter in the word should be
+    //counted.
+    if (!wrongWords.isEmpty()) {
+      int idx = pattern.indexOf(HangmanGame.MYSTERY_LETTER);
+      guessed = new HashSet<Character>(guessedLetters);
+      for (String wd : wrongWords) {
+        guessed.add(wd.charAt(idx));
+      }
+    }
+
+    //Update the wordset when the game status(pattern and guessed) doesn't match.
+    if (!(pattern.equals(this.wordset.pattern) && guessed.equals(this.wordset.guessedLetters))) {
+      //Update wordset on a previous guess result, be it successful or not.
+      this.wordset = new WordSet(pattern, guessed, this.wordset);
+    }
+
+    if (this.wordset.size() == 1) {
+      return new GuessWord(this.wordset.iterator().next());
+    }
+
+    int patternBlanks = numOfBlanks(pattern);
+    if (patternBlanks > 1) {
+      if (game.numWrongGuessesRemaining() == 0) {
+        return new GuessWord(finalBlow(game));
+      }
+      else {
+        return new GuessLetter((this.wordset.suggest(guessedLetters)));
+      }
     }
     else {
-      return new GuessWord(next);
+      //When there's only one blank letter, try to guess the word to save one
+      //score on a successfull guess.
+      char ch = this.wordset.suggest(guessed);
+      return new GuessWord(pattern.replace(HangmanGame.MYSTERY_LETTER, ch));
     }
   }
 
@@ -249,53 +281,6 @@ class MyGuessingStrategy implements GuessingStrategy {
 
     assert(guess != null);
     return guess;
-  }
-
-  /**
-   * Suggest a letter or word.
-   */
-  private String suggest(HangmanGame game) {
-    if (this.wordset.size() == 1) {
-      return this.wordset.iterator().next();
-    }
-
-    String word = null;
-    Set<Character> guessedLetters = game.getAllGuessedLetters();
-    String pattern = game.getGuessedSoFar();
-    int patternBlanks = numOfBlanks(pattern); //Number of '-' characters in a pattern.
-
-    if (patternBlanks > 1) {
-      if (game.numWrongGuessesRemaining() == 0) {
-        word = finalBlow(game);
-      }
-      else {
-        word = Character.toString(this.wordset.suggest(guessedLetters));
-      }
-    }
-    else {
-      //When there's only one blank letter, try to guess the word to save one
-      //score on a successfull guess.
-      Set<Character> excluded;
-      Set<String> wrongWords = game.getIncorrectlyGuessedWords();
-      if (!wrongWords.isEmpty()) {
-        //Reduce the wordset by incorrectly guessed letters from the wrongWords
-        //and guessedLetters.
-        int idx = pattern.indexOf(HangmanGame.MYSTERY_LETTER);
-        excluded = new HashSet<Character>(guessedLetters);
-        for (String wd : wrongWords) {
-          excluded.add(wd.charAt(idx));
-        }
-        this.wordset = new WordSet(pattern, excluded, this.wordset);
-      }
-      else {
-        excluded = guessedLetters;
-      }
-      char ch = this.wordset.suggest(excluded);
-      word = pattern.replace(HangmanGame.MYSTERY_LETTER, ch);
-    }
-
-    assert(word != null);
-    return word;
   }
 
   /**
